@@ -10,7 +10,7 @@ import (
 
 type ServerMessage struct {
 	nickname string
-	udpEndpoint string
+	udpAddr string
 }
 type Client struct {
 	conn net.Conn
@@ -35,7 +35,7 @@ func processRequest(conn net.Conn) (ServerMessage, error) {
 	if err != nil {
 		return ServerMessage{}, err
 	}
-	log.Printf("%s joined from %s. UDP endpoint: %s\n", message.nickname, conn.RemoteAddr().String(), message.udpEndpoint)
+	log.Printf("%s joined from %s. UDP endpoint: %s\n", message.nickname, conn.RemoteAddr().String(), message.udpAddr)
 	return *message, nil
 }
 
@@ -59,7 +59,7 @@ func handleRequest(conn net.Conn, index int) {
 	indexBytes := []byte{byte(index)}
 	conn.Write(indexBytes)
 	
-	if(index == 0) {
+	if index == 0 {
 		log.Println("1 user connected, waiting for another user to join...")
 		log.Println()
 	} else {

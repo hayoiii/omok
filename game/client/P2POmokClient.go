@@ -11,23 +11,20 @@ import (
 
 type ServerMessage struct {
 	nickname string
-	udpEndpoint string
+	udpAddr string
 }
 
 func handleConnection(conn *net.UDPConn) {
 	buffer := make([]byte, 1024)
 
-	// udp connection으로 부터 값을 읽어들인다. 
 	n, addr, err := conn.ReadFromUDP(buffer)
 	if err != nil {
 		log.Fatal(err)
 	}
     
-    // 리턴 값은 전달 받은 클라이언트 서버의 address, msg
 	fmt.Println("UDP client : ", addr)
 	fmt.Println("Received from UDP client : ", string(buffer[:n]))
 
-	// 클라이언트로 msg write
 	msg := []byte("Hello UDP Client")
 	_, err = conn.WriteToUDP(msg, addr)
 	if err != nil {
@@ -35,7 +32,19 @@ func handleConnection(conn *net.UDPConn) {
 	}
 }
 
-func processServerMessage(conn net.Conn) (ServerMessage, error) {
+func readIndexFromServer(conn net.Conn) (int, error) {
+	buffer := make([]byte, 16)
+	n, err := conn.Read(buffer)
+	if err != nil {
+		log.Fatal(err)
+		return -1, err
+	}
+
+	index := int(buffer[n])
+	return index, nil
+}
+
+func readMessageFromServer(conn net.Conn) (ServerMessage, error) {
 	buffer := make([]byte, 1024)
 	_, err := conn.Read(buffer)
 	if err != nil {
@@ -50,7 +59,7 @@ func processServerMessage(conn net.Conn) (ServerMessage, error) {
 	if err != nil {
 		return ServerMessage{}, err
 	}
-	log.Printf("%s joined from %s. UDP endpoint: %s\n", message.nickname, conn.RemoteAddr().String(), message.udpEndpoint)
+	log.Printf("%s joined from %s. UDP endpoint: %s\n", message.nickname, conn.RemoteAddr().String(), message.udpAddr)
 	return *message, nil
 }
 
@@ -63,13 +72,12 @@ func encodeMessage(message ServerMessage) []byte {
 	return buffer.Bytes()
 }
 
-
 const (
 	SERVER_CONN_TYPE = "tcp"
 	SERVER_CONN_ADDR = "localhost:5999"
 	CONN_ADDR = "localhost:12345"
 )
-func connectServer(nickname string) {
+func connectServer(nickname string) (int, ServerMessage) {
 	conn, err := net.Dial(SERVER_CONN_TYPE, SERVER_CONN_ADDR)
 	if err != nil {
 		log.Fatal(err)
@@ -86,35 +94,26 @@ func connectServer(nickname string) {
 		log.Fatal(err)
 	}
 
-	// 서버로부터 메시지를 읽어들인다.
-	buffer := make([]byte, 1024)
-	n, err := conn.Read(buffer)
+	index, err := readIndexFromServer(conn)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	// 몇 번째 클라이언트인지 확인
-	index := int(buffer[0])
-
 	if(index == 0) {
 		fmt.Println("Waiting for an opponent...")
 	}
 
-	_, err = conn.Read(buffer[n+1:])
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	opponent, err := processServerMessage(conn)
+	opponent, err := readMessageFromServer(conn)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	if index == 0 {
-		fmt.Printf("%s joined (%s). You play first.", opponent.nickname, opponent.udpEndpoint)
+		fmt.Printf("%s joined (%s). You play first.", opponent.nickname, opponent.udpAddr)
 	} else {
-		fmt.Printf("%s is waiting for you (%s).\n %s plays first.", opponent.nickname, opponent.udpEndpoint, opponent.nickname)
+		fmt.Printf("%s is waiting for you (%s).\n %s plays first.", opponent.nickname, opponent.udpAddr, opponent.nickname)
 	}
+
+	return index, opponent
 }
 
 func main() {
@@ -123,6 +122,8 @@ func main() {
 		log.Fatal("Usage: go run P2POmokClient.go <nickname>")
 	}
 
+	// index, opponent := 
 	connectServer(nickname)
+
 }
 
