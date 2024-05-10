@@ -1,0 +1,4 @@
+github.com/jsumners/go-getport v1.0.0 h1:d11eDaP25dKKoJRAFeBrchCayceft735pDSTFCEdkb4=
+github.com/jsumners/go-getport v1.0.0/go.mod h1:KpeJgwNSkpuXuoGhJ2Hgl5QJqWbLG1m0jY2rQsYUTIE=
+github.com/spf13/cast v1.5.0 h1:rj3WzYc11XZaIZMPKmwP96zkFEnnAmV8s6XbB2aY32w=
+github.com/spf13/cast v1.5.0/go.mod h1:SpXXQ5YoyJw6s3/6cMTQuxvgRl3PCJiyaX9p6b155UU=
