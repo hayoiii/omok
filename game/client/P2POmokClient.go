@@ -7,29 +7,12 @@ import (
 	"log"
 	"net"
 	"os"
+	"strconv"
 )
 
 type ServerMessage struct {
-	nickname string
-	udpAddr string
-}
-
-func handleConnection(conn *net.UDPConn) {
-	buffer := make([]byte, 1024)
-
-	n, addr, err := conn.ReadFromUDP(buffer)
-	if err != nil {
-		log.Fatal(err)
-	}
-    
-	fmt.Println("UDP client : ", addr)
-	fmt.Println("Received from UDP client : ", string(buffer[:n]))
-
-	msg := []byte("Hello UDP Client")
-	_, err = conn.WriteToUDP(msg, addr)
-	if err != nil {
-		log.Fatal(err)
-	}
+	Nickname string
+	UdpAddr string
 }
 
 func readIndexFromServer(conn net.Conn) (int, error) {
@@ -40,7 +23,11 @@ func readIndexFromServer(conn net.Conn) (int, error) {
 		return -1, err
 	}
 
-	index := int(buffer[n])
+	index, err := strconv.Atoi(string(buffer[:n]))
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	return index, nil
 }
 
@@ -59,7 +46,7 @@ func readMessageFromServer(conn net.Conn) (ServerMessage, error) {
 	if err != nil {
 		return ServerMessage{}, err
 	}
-	log.Printf("%s joined from %s. UDP endpoint: %s\n", message.nickname, conn.RemoteAddr().String(), message.udpAddr)
+	log.Printf("%s joined from %s. UDP endpoint: %s\n", message.Nickname, conn.RemoteAddr().String(), message.UdpAddr)
 	return *message, nil
 }
 
@@ -67,7 +54,7 @@ func encodeMessage(message ServerMessage) []byte {
 	buffer := new(bytes.Buffer)
 	err := gob.NewEncoder(buffer).Encode(message)
 	if err != nil {
-		log.Fatal("failed to encode message", err)
+		log.Fatal("failed to encode message ", err)
 	}
 	return buffer.Bytes()
 }
@@ -108,19 +95,19 @@ func connectServer(nickname string) (int, ServerMessage) {
 	}
 
 	if index == 0 {
-		fmt.Printf("%s joined (%s). You play first.", opponent.nickname, opponent.udpAddr)
+		fmt.Printf("%s joined (%s). You play first.", opponent.Nickname, opponent.UdpAddr)
 	} else {
-		fmt.Printf("%s is waiting for you (%s).\n %s plays first.", opponent.nickname, opponent.udpAddr, opponent.nickname)
+		fmt.Printf("%s is waiting for you (%s).\n %s plays first.", opponent.Nickname, opponent.UdpAddr, opponent.Nickname)
 	}
 
 	return index, opponent
 }
 
 func main() {
-	nickname := os.Args[1]
-	if len(nickname) == 0 {
+	if len(os.Args) != 2 {
 		log.Fatal("Usage: go run P2POmokClient.go <nickname>")
 	}
+	nickname := os.Args[1]
 
 	// index, opponent := 
 	connectServer(nickname)
