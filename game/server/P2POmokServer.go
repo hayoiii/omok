@@ -55,17 +55,19 @@ func handleRequest(conn net.Conn) {
 	} else {
 		index = 1
 	}
+
+	clients[index].conn = conn
 	message, err := processRequest(conn)
 	if err != nil {
+		clients[index].conn.Close()
+		clients[index] = Client{}
 		log.Fatal("failed to process request", err)
 	}
 
-	clients[index].conn = conn
 	clients[index].message = message
-
+	
 	indexBytes := []byte{byte(index)}
 	conn.Write(indexBytes)
-
 	if index == 0 {
 		log.Println("1 user connected, waiting for another user to join...")
 	} else {
@@ -124,5 +126,7 @@ func main() {
 	}
 
 	defer l.Close()
-	waitForConnections(l)
+	for {
+		waitForConnections(l)
+	}
 }
