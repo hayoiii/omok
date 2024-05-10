@@ -9,8 +9,8 @@ import (
 )
 
 type ServerMessage struct {
-	nickname string
-	udpAddr string
+	Nickname string
+	UdpAddr string
 }
 type Client struct {
 	conn net.Conn
@@ -35,7 +35,7 @@ func processRequest(conn net.Conn) (ServerMessage, error) {
 	if err != nil {
 		return ServerMessage{}, err
 	}
-	log.Printf("%s joined from %s. UDP endpoint: %s\n", message.nickname, conn.RemoteAddr().String(), message.udpAddr)
+	log.Printf("%s joined from %s. UDP endpoint: %s\n", message.Nickname, conn.RemoteAddr().String(), message.UdpAddr)
 	return *message, nil
 }
 
@@ -48,12 +48,20 @@ func encodeMessage(message ServerMessage) []byte {
 	return buffer.Bytes()
 }
 
-func handleRequest(conn net.Conn, index int) {
-	clients[index].conn = conn
+func handleRequest(conn net.Conn) {
+	var index int
+	if clients[0].conn == nil {
+		index = 0
+	} else {
+		index = 1
+	}
+	
 	message, err := processRequest(conn)
 	if err != nil {
 		log.Fatal("failed to process request", err)
 	}
+
+	clients[index].conn = conn
 	clients[index].message = message
 
 	indexBytes := []byte{byte(index)}
@@ -61,9 +69,8 @@ func handleRequest(conn net.Conn, index int) {
 	
 	if index == 0 {
 		log.Println("1 user connected, waiting for another user to join...")
-		log.Println()
 	} else {
-		log.Printf("2 users connected, notifying %s and %s\n", clients[0].message.nickname, clients[1].message.nickname)
+		log.Printf("2 users connected, notifying %s and %s\n", clients[0].message.Nickname, clients[1].message.Nickname)
 		message0 := encodeMessage(clients[0].message)
 		message1 := encodeMessage(clients[1].message)
 		
@@ -82,7 +89,7 @@ func waitForConnections(listener net.Listener) {
 	wg.Add(2) // 2개의 연결을 기다립니다.
 
 	for i := 0; i < 2; i++ {
-			go func(i int) {
+			go func() {
 					conn, err := listener.Accept()
 					if err != nil {
 							log.Fatal(err)
@@ -90,10 +97,10 @@ func waitForConnections(listener net.Listener) {
 					defer conn.Close()
 
 					mutex.Lock()
-					handleRequest(conn, i)
+					handleRequest(conn)
 					mutex.Unlock()
 					wg.Done() // 연결 처리 완료
-			}(i)
+			}()
 	}
 
 	wg.Wait()
