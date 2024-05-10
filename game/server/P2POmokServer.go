@@ -10,10 +10,10 @@ import (
 
 type ServerMessage struct {
 	Nickname string
-	UdpAddr string
+	UdpAddr  string
 }
 type Client struct {
-	conn net.Conn
+	conn    net.Conn
 	message ServerMessage
 }
 
@@ -59,13 +59,13 @@ func handleRequest(conn net.Conn) {
 	if err != nil {
 		log.Fatal("failed to process request", err)
 	}
-	
+
 	clients[index].conn = conn
 	clients[index].message = message
 
 	indexBytes := []byte{byte(index)}
 	conn.Write(indexBytes)
-	
+
 	if index == 0 {
 		log.Println("1 user connected, waiting for another user to join...")
 	} else {
@@ -74,11 +74,11 @@ func handleRequest(conn net.Conn) {
 			clients[1].conn.Close()
 			clients = [2]Client{}
 		}()
-		
+
 		log.Printf("2 users connected, notifying %s and %s\n", clients[0].message.Nickname, clients[1].message.Nickname)
 		message0 := encodeMessage(clients[0].message)
 		message1 := encodeMessage(clients[1].message)
-		
+
 		_, err := clients[0].conn.Write(message1)
 		if err != nil {
 			log.Fatal("failed to send message to client 0", err)
@@ -95,22 +95,21 @@ func waitForConnections(listener net.Listener) {
 	wg.Add(2) // 2개의 연결을 기다립니다.
 
 	for i := 0; i < 2; i++ {
-			go func() {
-					conn, err := listener.Accept()
-					if err != nil {
-						log.Fatal(err)
-					}
+		go func() {
+			conn, err := listener.Accept()
+			if err != nil {
+				log.Fatal(err)
+			}
 
-					mutex.Lock()
-					handleRequest(conn)
-					mutex.Unlock()
-					wg.Done() // 연결 처리 완료
-			}()
+			mutex.Lock()
+			handleRequest(conn)
+			mutex.Unlock()
+			wg.Done() // 연결 처리 완료
+		}()
 	}
 
 	wg.Wait()
 }
-
 
 const (
 	CONN_TYPE = "tcp"
