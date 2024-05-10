@@ -55,12 +55,11 @@ func handleRequest(conn net.Conn) {
 	} else {
 		index = 1
 	}
-	
 	message, err := processRequest(conn)
 	if err != nil {
 		log.Fatal("failed to process request", err)
 	}
-
+	
 	clients[index].conn = conn
 	clients[index].message = message
 
@@ -70,17 +69,24 @@ func handleRequest(conn net.Conn) {
 	if index == 0 {
 		log.Println("1 user connected, waiting for another user to join...")
 	} else {
+		defer func() {
+			clients[0].conn.Close()
+			clients[1].conn.Close()
+			clients = [2]Client{}
+		}()
+		
 		log.Printf("2 users connected, notifying %s and %s\n", clients[0].message.Nickname, clients[1].message.Nickname)
 		message0 := encodeMessage(clients[0].message)
 		message1 := encodeMessage(clients[1].message)
 		
-		clients[0].conn.Write(message1)
-		clients[1].conn.Write(message0)
-
-		clients[0].conn.Close()
-		clients[1].conn.Close()
-
-		clients = [2]Client{}
+		_, err := clients[0].conn.Write(message1)
+		if err != nil {
+			log.Fatal("failed to send message to client 0", err)
+		}
+		_, err = clients[1].conn.Write(message0)
+		if err != nil {
+			log.Fatal("failed to send message to client 1", err)
+		}
 	}
 }
 
@@ -92,9 +98,8 @@ func waitForConnections(listener net.Listener) {
 			go func() {
 					conn, err := listener.Accept()
 					if err != nil {
-							log.Fatal(err)
+						log.Fatal(err)
 					}
-					defer conn.Close()
 
 					mutex.Lock()
 					handleRequest(conn)
