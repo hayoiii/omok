@@ -74,7 +74,7 @@ func CreateUdpServer() (*UdpServer, error) {
 	}, nil
 }
 
-func HandleUdpRequest(server *UdpServer, opponent ServerMessage) {
+func HandleUdpRequest(server *UdpServer, opponent ServerMessage, isMyTurn bool) {
 	buffer := make([]byte, 1024)
 	_, _, err := server.conn.ReadFromUDP(buffer)
 	if err != nil {
@@ -85,19 +85,28 @@ func HandleUdpRequest(server *UdpServer, opponent ServerMessage) {
 	if buffer[0] != byte('/') {
 		// chat
 		fmt.Printf("%s> %s\n", opponent.Nickname, string(buffer))
+		server.channel <- string("")
 	} else {
-		// TODO: command
-		fmt.Printf("%s> %s\n", opponent.Nickname, string(buffer))
+		command := string(buffer)[1:]
+		if command == "gg" {
+			// 상대방 항복
+			fmt.Println("You are winner!")
+			// server.channel <- gg
+		}
+		if command == "x y" {
+			// printBoard, checkWin
+			fmt.Println("Your turn")
+			// server.channel <- checkWin
+		}
 	}
-	server.channel <- string(buffer)
 }
 
-func RequestToServer(client *UdpClient, opponent ServerMessage) {
+func RequestToServer(client *UdpClient, opponent ServerMessage, isMyTurn bool) {
 	ch := make(chan string)
 	go sendMessage(ch)
 
-	buffer := <-ch
-	_, err := client.conn.Write([]byte(buffer))
+	input := <-ch
+	_, err := client.conn.Write([]byte(input))
 
 	if err != nil {
 		fmt.Print(err)
@@ -105,7 +114,15 @@ func RequestToServer(client *UdpClient, opponent ServerMessage) {
 		return
 	}
 
-	client.channel <- string(buffer)
+	if input == "/gg" {
+		// 항복
+		fmt.Println("You are loser!")
+	}
+	if input == "//1 2" {
+		// printBoard, checkWin
+		fmt.Printf("%s's turn\n", opponent.Nickname)
+		// server.channel <- checkWin
+	}
 }
 
 func sendMessage(ch chan string) {
@@ -115,20 +132,44 @@ func sendMessage(ch chan string) {
 	ch <- tmp
 }
 
-func StartGame(udpServer *UdpServer, opponent ServerMessage) {
+func StartGame(udpServer *UdpServer, opponent ServerMessage, index int) {
 	udpClient, err := CreateUdpClient(opponent)
 	if err != nil {
 		log.Fatal("failed to connect to opponent", err)
 	}
+	defer func() {
+		udpServer.conn.Close()
+		udpClient.conn.Close()
+	}()
+
+	turn := 0
 	for {
-		go RequestToServer(udpClient, opponent)
-		go HandleUdpRequest(udpServer, opponent)
+		go RequestToServer(udpClient, opponent, turn == index)
+		go HandleUdpRequest(udpServer, opponent, turn == index)
 
 		select {
 		case buffer := <-udpClient.channel:
-			fmt.Printf("send: %s\n", string(buffer))
+			if buffer == "내가 움직였으면" {
+				// 턴 넘기기
+				turn = (turn + 1) % 2
+			}
+			if buffer == "내가 이겼으면" {
+				fmt.Println("You are winner!")
+			}
+			if buffer == "항복" {
+				fmt.Println("You are loser!")
+			}
 		case buffer := <-udpServer.channel:
-			fmt.Printf("received: %s\n", string(buffer))
+			if buffer == "상대방이 움직였으면" {
+				// 턴 넘기기
+				turn = (turn + 1) % 2
+			}
+			if buffer == "상대방이 이겼으면" {
+				fmt.Println("You are loser!")
+			}
+			if buffer == "항복" {
+				fmt.Println("You are winner!")
+			}
 		}
 	}
 }

@@ -129,7 +129,7 @@ func main() {
 			} else {
 				fmt.Printf("%s is waiting for you (%s).\n %s plays first.\n\n", opponent.Nickname, opponent.UdpAddr, opponent.Nickname)
 			}
-			StartGame(udpServer, opponent)
+			StartGame(udpServer, opponent, index)
 			return
 		case err := <-eCh:
 			log.Fatal(err)
